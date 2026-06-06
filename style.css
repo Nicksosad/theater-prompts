@@ -1,0 +1,292 @@
+.theater-prompts-panel.hidden {
+    display: none;
+}
+
+.theater-prompts-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+}
+
+.theater-prompts-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.theater-prompts-window {
+    position: absolute;
+    top: 5vh;
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    width: min(920px, calc(100vw - 24px));
+    max-height: 90vh;
+    transform: translateX(-50%);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 12px;
+    background: var(--SmartThemeBlurTintColor);
+    color: var(--SmartThemeBodyColor);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+}
+
+.theater-prompts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+}
+
+.theater-prompts-header > div:not(.theater-prompts-header-spacer) {
+    flex: 1;
+    min-width: 0;
+}
+
+.theater-prompts-header h3,
+.theater-prompts-detail h4 {
+    margin: 0;
+}
+
+.theater-prompts-header p {
+    margin: 4px 0 0;
+    opacity: 0.75;
+}
+
+.theater-prompts-header-spacer,
+.theater-prompts-plain-icon {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+}
+
+.theater-prompts-plain-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 5px;
+    background: var(--SmartThemeBlurTintColor);
+    color: var(--SmartThemeBodyColor);
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.theater-prompts-plain-icon:hover {
+    background: var(--white30a);
+}
+
+.theater-prompts-panel .menu_button {
+    width: auto;
+    min-width: max-content;
+    white-space: nowrap;
+    margin: 0;
+}
+
+.theater-prompts-main-toolbar,
+.theater-prompts-toolbar {
+    display: flex;
+    align-items: end;
+    gap: 10px;
+    padding: 12px 18px 0;
+    flex-wrap: wrap;
+}
+
+.theater-prompts-main-toolbar {
+    align-items: center;
+}
+
+.theater-prompts-main-toolbar input {
+    flex: 1;
+    min-width: 220px;
+}
+
+.theater-prompts-toolbar label,
+.theater-prompts-page-body > label,
+.theater-prompts-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 170px;
+    font-size: 0.9em;
+}
+
+.theater-prompts-main-toolbar input,
+.theater-prompts-toolbar input,
+.theater-prompts-page-body input {
+    min-height: 32px;
+}
+
+.theater-prompts-dark-button,
+.theater-prompts-block-button,
+.theater-prompts-tag-option {
+    color: var(--SmartThemeBodyColor);
+    filter: grayscale(0.5);
+    background-color: var(--SmartThemeBlurTintColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 5px;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: var(--animation-duration-2x);
+}
+
+.theater-prompts-dark-button:hover,
+.theater-prompts-block-button:hover,
+.theater-prompts-tag-option:hover {
+    background-color: var(--white30a);
+}
+
+.theater-prompts-random {
+    justify-content: flex-end;
+}
+
+.theater-prompts-random label:first-child {
+    margin-right: auto;
+}
+
+.theater-prompts-page-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    overflow: auto;
+}
+
+.theater-prompts-block-button {
+    width: fit-content;
+    min-width: 180px;
+    padding: 7px 12px;
+}
+
+.theater-prompts-tag-grid {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.theater-prompts-tag-option.active {
+    background: var(--white30a);
+    filter: none;
+}
+
+.theater-prompts-count,
+.theater-prompts-error,
+.theater-prompts-empty {
+    margin: 12px 18px;
+}
+
+.theater-prompts-error {
+    color: #ff8a8a;
+}
+
+.theater-prompts-empty {
+    opacity: 0.75;
+}
+
+.theater-prompts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 18px 18px;
+    overflow: auto;
+}
+
+.theater-prompts-item {
+    padding: 12px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.theater-prompts-item-main strong {
+    display: inline;
+    word-break: break-all;
+}
+
+.theater-prompts-title-row {
+    line-height: 1.8;
+}
+
+.theater-prompts-title-row::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+.theater-prompts-item-actions {
+    display: inline-flex;
+    float: right;
+    gap: 6px;
+    margin-left: 8px;
+    white-space: nowrap;
+    vertical-align: baseline;
+}
+
+.theater-prompts-item-actions .menu_button {
+    display: inline-flex;
+    vertical-align: middle;
+}
+
+.theater-prompts-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 7px;
+}
+
+.theater-prompts-tags span {
+    padding: 2px 8px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 999px;
+    font-size: 0.85em;
+    opacity: 0.85;
+}
+
+.theater-prompts-detail-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.theater-prompts-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px;
+    overflow: auto;
+}
+
+.theater-prompts-content {
+    width: 100%;
+    min-height: 48vh;
+    resize: vertical;
+    white-space: pre-wrap;
+}
+
+@media screen and (max-width: 700px) {
+    .theater-prompts-window {
+        top: 2vh;
+        width: calc(100vw - 12px);
+        max-height: 96vh;
+    }
+
+    .theater-prompts-item {
+        gap: 8px;
+    }
+
+    .theater-prompts-main-toolbar {
+        flex-wrap: nowrap;
+    }
+
+    .theater-prompts-main-toolbar input {
+        min-width: 0;
+    }
+
+    .theater-prompts-toolbar label,
+    .theater-prompts-page-body > label {
+        width: 100%;
+    }
+}

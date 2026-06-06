@@ -1,0 +1,11 @@
+{
+    "display_name": "小剧场提示词库",
+    "loading_order": 99,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "404",
+    "version": "1.0.0",
+    "homePage": ""
+}
