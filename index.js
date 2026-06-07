@@ -567,19 +567,9 @@ function renderTags() {
 function renderLinkSave() {
     const pending = state.pendingSave;
     if (!pending) return renderSettings();
-    const userPreview = pending.userText || '没有找到上一条用户消息，将以未关联保存。';
-    const charPreview = getMessageText(pending.message);
     return `
-        ${renderHeader('选择关联提示词', `根据上一条用户消息匹配到 ${pending.matches.length} 个候选`, 'settings', '')}
+        ${renderHeader('选择关联提示词', `找到 ${pending.matches.length} 个推荐关联`, 'settings', '')}
         <div class="theater-prompts-page-body">
-            <div class="theater-prompts-preview-block">
-                <strong>上一条用户消息</strong>
-                <p>${escapeHtml(userPreview)}</p>
-            </div>
-            <div class="theater-prompts-preview-block">
-                <strong>待保存角色回复</strong>
-                <p>${escapeHtml(charPreview)}</p>
-            </div>
             ${renderPromptLinkCandidates(pending.matches)}
             <div class="theater-prompts-detail-actions">
                 <button class="theater-prompts-block-button" type="button" data-action="save-unlinked">不关联，直接保存</button>
@@ -596,7 +586,7 @@ function renderPromptLinkCandidates(matches) {
 
     return `
         <div class="theater-prompts-link-list">
-            ${matches.map(({ prompt, score }) => `
+            ${matches.map(({ prompt }) => `
                 <article class="theater-prompts-item">
                     <div class="theater-prompts-title-row">
                         <strong>${escapeHtml(prompt.title)}</strong>
@@ -604,7 +594,6 @@ function renderPromptLinkCandidates(matches) {
                             <button class="menu_button" type="button" data-action="save-linked" data-prompt-id="${escapeHtml(prompt.id)}">关联并保存</button>
                         </span>
                     </div>
-                    <div class="theater-prompts-match-score">匹配度 ${Math.round(score)}</div>
                     ${prompt.tags.length ? `<div class="theater-prompts-tags">${prompt.tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
                 </article>
             `).join('')}
