@@ -4,6 +4,7 @@ const EXTENSION_NAME = 'theater-prompts';
 const STORAGE_KEY = 'theaterPrompts.settings';
 const DEFAULT_BASE_URL = 'http://localhost:7788';
 const MAX_RANDOM_COUNT = 50;
+const MATCH_LIMIT = 8;
 
 const state = {
     prompts: [],
@@ -14,9 +15,11 @@ const state = {
     randomPrompts: null,
     detailPrompt: null,
     lastUsedPrompt: null,
+    pendingSave: null,
     view: 'main',
     baseUrl: DEFAULT_BASE_URL,
     authToken: '',
+    authPassword: '',
     loading: false,
     error: '',
 };
@@ -28,6 +31,7 @@ function loadSettings() {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
         state.baseUrl = String(saved.baseUrl || DEFAULT_BASE_URL).trim() || DEFAULT_BASE_URL;
         state.authToken = String(saved.authToken || '').trim();
+        state.authPassword = String(saved.authPassword || '').trim();
         state.randomCount = clampRandomCount(saved.randomCount || 10);
         state.selectedTags = Array.isArray(saved.selectedTags) ? saved.selectedTags.map(tag => String(tag || '').trim()).filter(Boolean) : [];
     } catch {
@@ -39,6 +43,7 @@ function saveSettings() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
         baseUrl: state.baseUrl,
         authToken: state.authToken,
+        authPassword: state.authPassword,
         randomCount: state.randomCount,
         selectedTags: state.selectedTags,
     }));
@@ -74,10 +79,169 @@ function normalizePrompt(raw) {
     };
 }
 
+function stripMarkup(value) {
+    return String(value || '')
+        .replace(/```(?:html)?\s*([\s\S]*?)\s*```/gi, '$1')
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function getMessageText(message) {
+    return stripMarkup(message?.mes || message?.message || '');
+}
+
+function normalizeMatchText(value) {
+    return stripMarkup(value).toLowerCase();
+}
+
+function getMatchTerms(value) {
+    const text = normalizeMatchText(value);
+    const terms = new Set();
+    const asciiWords = text.match(/[a-z0-9_]{2,}/g) || [];
+    asciiWords.forEach(word => terms.add(word));
+
+    const cjkText = (text.match(/[\u4e00-\u9fff]+/g) || []).join('');
+    for (let index = 0; index < cjkText.length - 1; index++) {
+        terms.add(cjkText.slice(index, index + 2));
+    }
+    for (let index = 0; index < cjkText.length - 2; index++) {
+        terms.add(cjkText.slice(index, index + 3));
+    }
+    return terms;
+}
+
+function scorePromptMatch(userText, prompt) {
+    const source = normalizeMatchText(userText);
+    if (!source) return 0;
+
+    const title = normalizeMatchText(prompt.title);
+    const tags = Array.isArray(prompt.tags) ? prompt.tags.map(normalizeMatchText).filter(Boolean) : [];
+    const content = normalizeMatchText(prompt.content);
+    const sourceTerms = getMatchTerms(source);
+    const promptTerms = getMatchTerms(`${prompt.title} ${tags.join(' ')} ${prompt.content}`);
+    let score = 0;
+
+    if (title && source.includes(title)) score += 120;
+    tags.forEach(tag => {
+        if (tag && source.includes(tag)) score += 35;
+    });
+
+    sourceTerms.forEach(term => {
+        if (!promptTerms.has(term)) return;
+        score += term.length >= 3 ? 2 : 1;
+    });
+
+    const contentWindows = content.match(/[\s\S]{12,80}/g) || [];
+    contentWindows.slice(0, 40).forEach(windowText => {
+        const compact = windowText.trim();
+        if (compact.length >= 12 && source.includes(compact)) score += Math.min(80, compact.length);
+    });
+
+    return score;
+}
+
+function findRelatedPrompts(userText) {
+    return state.prompts
+        .map(prompt => ({ prompt, score: scorePromptMatch(userText, prompt) }))
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score || String(a.prompt.title).localeCompare(String(b.prompt.title), 'zh-Hans-CN'))
+        .slice(0, MATCH_LIMIT);
+}
+
+function findLastCharacterMessage(messages) {
+    for (let index = messages.length - 1; index >= 0; index--) {
+        const message = messages[index];
+        if (getMessageText(message) && !message?.is_user && !message?.is_system) {
+            return { message, index };
+        }
+    }
+    return null;
+}
+
+function findPreviousUserMessage(messages, beforeIndex) {
+    for (let index = beforeIndex - 1; index >= 0; index--) {
+        const message = messages[index];
+        if (getMessageText(message) && message?.is_user && !message?.is_system) {
+            return { message, index };
+        }
+    }
+    return null;
+}
+
 function getRequestHeaders() {
     const headers = { 'Content-Type': 'application/json' };
     if (state.authToken) headers.Authorization = `Bearer ${state.authToken}`;
     return headers;
+}
+
+function syncAuthPasswordFromInput() {
+    const passwordInput = document.getElementById('theater_prompts_auth_password');
+    if (passwordInput) state.authPassword = String(passwordInput.value || '');
+    return state.authPassword;
+}
+
+async function loginWithPassword(password) {
+    const cleanPassword = String(password || '');
+    if (!cleanPassword) throw new Error('请在设置里输入小剧场管理器密码');
+    const response = await fetch(`${state.baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: cleanPassword }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.token) {
+        throw new Error(payload?.error || (response.status === 401 ? '密码错误' : `HTTP ${response.status}`));
+    }
+    state.authToken = String(payload.token || '').trim();
+    saveSettings();
+    return state.authToken;
+}
+
+async function fetchWithAuthRetry(url, options = {}) {
+    syncAuthPasswordFromInput();
+    const legacyPassword = state.authPassword ? '' : state.authToken;
+    const requestOptions = {
+        ...options,
+        headers: {
+            ...(options.headers || {}),
+        },
+    };
+    if (state.authToken && !requestOptions.headers.Authorization) {
+        requestOptions.headers.Authorization = `Bearer ${state.authToken}`;
+    }
+
+    if (!state.authToken && state.authPassword) {
+        const token = await loginWithPassword(state.authPassword);
+        requestOptions.headers.Authorization = `Bearer ${token}`;
+    }
+
+    let response = await fetch(url, requestOptions);
+    if (response.status !== 401) return response;
+
+    state.authToken = '';
+    saveSettings();
+    syncAuthPasswordFromInput();
+    if (!state.authPassword && legacyPassword) {
+        state.authPassword = legacyPassword;
+    }
+    if (!state.authPassword) return response;
+
+    const token = await loginWithPassword(state.authPassword);
+    response = await fetch(url, {
+        ...requestOptions,
+        headers: {
+            ...(requestOptions.headers || {}),
+            Authorization: `Bearer ${token}`,
+        },
+    });
+    return response;
 }
 
 async function fetchPrompts() {
@@ -86,9 +250,8 @@ async function fetchPrompts() {
     renderPanel();
 
     try {
-        const response = await fetch(`${state.baseUrl}/api/data`, {
-            headers: state.authToken ? { Authorization: `Bearer ${state.authToken}` } : {},
-        });
+        const response = await fetchWithAuthRetry(`${state.baseUrl}/api/data`);
+        if (response.status === 401) throw new Error('未授权：请在设置里输入小剧场管理器密码后重新刷新');
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const payload = await response.json();
         state.prompts = (Array.isArray(payload?.prompts) ? payload.prompts : [])
@@ -123,10 +286,10 @@ function getDisplayedPrompts() {
 
 function syncSettingsInputs() {
     const baseUrlInput = document.getElementById('theater_prompts_base_url');
-    const tokenInput = document.getElementById('theater_prompts_auth_token');
+    const passwordInput = document.getElementById('theater_prompts_auth_password');
     const randomCountInput = document.getElementById('theater_prompts_random_count');
     if (baseUrlInput) state.baseUrl = normalizeBaseUrl(baseUrlInput.value);
-    if (tokenInput) state.authToken = String(tokenInput.value || '').trim();
+    if (passwordInput) state.authPassword = String(passwordInput.value || '');
     if (randomCountInput) state.randomCount = clampRandomCount(randomCountInput.value);
     saveSettings();
 }
@@ -192,17 +355,44 @@ function insertIntoInput(text, mode = 'replace') {
     showToast(mode === 'append' ? '已追加到输入框' : '已插入到输入框');
 }
 
-async function saveLastAiMessage() {
+async function startLastAiSaveFlow() {
     const context = getContext();
     const messages = Array.isArray(context?.chat) ? context.chat : [];
-    const message = [...messages].reverse().find(item => item?.mes && !item?.is_user && !item?.is_system);
+    const foundCharacter = findLastCharacterMessage(messages);
 
-    if (!message) {
+    if (!foundCharacter) {
         showToast('没有找到可保存的助手回复', 'warning');
         return;
     }
 
-    const promptTitle = state.lastUsedPrompt?.title || state.detailPrompt?.title || '未关联提示词';
+    if (state.prompts.length === 0 && !state.loading) {
+        await fetchPrompts();
+    }
+
+    const foundUser = findPreviousUserMessage(messages, foundCharacter.index);
+    const userText = getMessageText(foundUser?.message);
+    const matches = findRelatedPrompts(userText);
+    state.pendingSave = {
+        message: foundCharacter.message,
+        userMessage: foundUser?.message || null,
+        userText,
+        matches,
+    };
+    state.view = 'link-save';
+    renderPanel();
+}
+
+async function saveLastAiMessage(prompt = undefined) {
+    const context = getContext();
+    const message = state.pendingSave?.message;
+
+    if (!message) {
+        showToast('没有找到待保存的助手回复', 'warning');
+        return;
+    }
+
+    const linkedPrompt = prompt === undefined ? (state.lastUsedPrompt || state.detailPrompt || null) : prompt;
+    const promptTitle = linkedPrompt?.title || '未关联提示词';
     const item = {
         id: Date.now() + 1,
         roleName: String(message.name || context?.name2 || '未知角色').trim() || '未知角色',
@@ -218,12 +408,16 @@ async function saveLastAiMessage() {
     };
 
     try {
-        const response = await fetch(`${state.baseUrl}/api/theaters`, {
+        const response = await fetchWithAuthRetry(`${state.baseUrl}/api/theaters`, {
             method: 'POST',
             headers: getRequestHeaders(),
             body: JSON.stringify(item),
         });
+        if (response.status === 401) throw new Error('未授权：请在设置里输入小剧场管理器密码后重试');
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        state.pendingSave = null;
+        state.view = 'settings';
+        renderPanel();
         showToast('已保存最后一条助手回复到小剧场管理器');
     } catch (error) {
         console.error(`[${EXTENSION_NAME}] 保存小剧场失败`, error);
@@ -284,6 +478,7 @@ function renderPanel() {
 function renderCurrentView(prompts, filteredCount, isRandomView) {
     if (state.view === 'settings') return renderSettings();
     if (state.view === 'tags') return renderTags();
+    if (state.view === 'link-save') return renderLinkSave();
     if (state.view === 'detail' && state.detailPrompt) return renderDetail(state.detailPrompt);
     return renderMain(prompts, filteredCount, isRandomView);
 }
@@ -343,8 +538,8 @@ function renderSettings() {
                 <input id="theater_prompts_base_url" type="text" value="${escapeHtml(state.baseUrl)}" placeholder="http://localhost:7788">
             </label>
             <label class="theater-prompts-form-group">
-                访问令牌（可选）
-                <input id="theater_prompts_auth_token" type="password" value="${escapeHtml(state.authToken)}" placeholder="密码保护关闭时留空">
+                管理器密码（可选）
+                <input id="theater_prompts_auth_password" type="password" value="${escapeHtml(state.authPassword)}" placeholder="密码保护关闭时留空">
             </label>
             <label class="theater-prompts-form-group">
                 随机数量
@@ -365,6 +560,54 @@ function renderTags() {
                 ${state.tags.map(tag => `<button class="theater-prompts-tag-option ${state.selectedTags.includes(tag) ? 'active' : ''}" type="button" data-action="toggle-tag" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join('')}
             </div>
             <button class="theater-prompts-block-button" type="button" data-action="back-main">应用筛选</button>
+        </div>
+    `;
+}
+
+function renderLinkSave() {
+    const pending = state.pendingSave;
+    if (!pending) return renderSettings();
+    const userPreview = pending.userText || '没有找到上一条用户消息，将以未关联保存。';
+    const charPreview = getMessageText(pending.message);
+    return `
+        ${renderHeader('选择关联提示词', `根据上一条用户消息匹配到 ${pending.matches.length} 个候选`, 'settings', '')}
+        <div class="theater-prompts-page-body">
+            <div class="theater-prompts-preview-block">
+                <strong>上一条用户消息</strong>
+                <p>${escapeHtml(userPreview)}</p>
+            </div>
+            <div class="theater-prompts-preview-block">
+                <strong>待保存角色回复</strong>
+                <p>${escapeHtml(charPreview)}</p>
+            </div>
+            ${renderPromptLinkCandidates(pending.matches)}
+            <div class="theater-prompts-detail-actions">
+                <button class="theater-prompts-block-button" type="button" data-action="save-unlinked">不关联，直接保存</button>
+                <button class="menu_button" type="button" data-action="settings">取消</button>
+            </div>
+        </div>
+    `;
+}
+
+function renderPromptLinkCandidates(matches) {
+    if (!matches.length) {
+        return '<div class="theater-prompts-empty">没有匹配到提示词，可以直接保存为未关联。</div>';
+    }
+
+    return `
+        <div class="theater-prompts-link-list">
+            ${matches.map(({ prompt, score }) => `
+                <article class="theater-prompts-item">
+                    <div class="theater-prompts-title-row">
+                        <strong>${escapeHtml(prompt.title)}</strong>
+                        <span class="theater-prompts-item-actions">
+                            <button class="menu_button" type="button" data-action="save-linked" data-prompt-id="${escapeHtml(prompt.id)}">关联并保存</button>
+                        </span>
+                    </div>
+                    <div class="theater-prompts-match-score">匹配度 ${Math.round(score)}</div>
+                    ${prompt.tags.length ? `<div class="theater-prompts-tags">${prompt.tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+                </article>
+            `).join('')}
         </div>
     `;
 }
@@ -428,6 +671,7 @@ function bindPanelEvents(panel) {
             if (action === 'close') closePanel();
             if (action === 'settings') {
                 state.view = 'settings';
+                state.pendingSave = null;
                 renderPanel();
             }
             if (action === 'open-tags') {
@@ -490,13 +734,19 @@ function bindPanelEvents(panel) {
             }
             if (action === 'save-last-ai') {
                 syncSettingsInputs();
-                await saveLastAiMessage();
+                await startLastAiSaveFlow();
+            }
+            if (action === 'save-linked' && prompt) {
+                await saveLastAiMessage(prompt);
+            }
+            if (action === 'save-unlinked') {
+                await saveLastAiMessage(null);
             }
         });
     });
 
     const baseUrlInput = panel.querySelector('#theater_prompts_base_url');
-    const tokenInput = panel.querySelector('#theater_prompts_auth_token');
+    const passwordInput = panel.querySelector('#theater_prompts_auth_password');
     const searchInput = panel.querySelector('#theater_prompts_search');
     const randomCountInput = panel.querySelector('#theater_prompts_random_count');
 
@@ -505,8 +755,9 @@ function bindPanelEvents(panel) {
         saveSettings();
         renderPanel();
     });
-    tokenInput?.addEventListener('change', event => {
-        state.authToken = String(event.target.value || '').trim();
+    passwordInput?.addEventListener('change', event => {
+        state.authPassword = String(event.target.value || '');
+        state.authToken = '';
         saveSettings();
     });
     searchInput?.addEventListener('input', event => {
