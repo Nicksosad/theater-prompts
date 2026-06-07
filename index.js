@@ -5,6 +5,7 @@ const STORAGE_KEY = 'theaterPrompts.settings';
 const DEFAULT_BASE_URL = 'http://localhost:7788';
 const MAX_RANDOM_COUNT = 50;
 const MATCH_LIMIT = 8;
+const MESSAGE_SAVE_BUTTON_CLASS = 'theater-prompts-message-save-button';
 
 const state = {
     prompts: [],
@@ -21,10 +22,12 @@ const state = {
     authToken: '',
     authPassword: '',
     loading: false,
+    saving: false,
     error: '',
 };
 
 let searchRenderTimer = null;
+let messageButtonsObserver = null;
 
 function loadSettings() {
     try {
@@ -158,7 +161,7 @@ function findRelatedPrompts(userText) {
 function findLastCharacterMessage(messages) {
     for (let index = messages.length - 1; index >= 0; index--) {
         const message = messages[index];
-        if (getMessageText(message) && !message?.is_user && !message?.is_system) {
+        if (isSaveableCharacterMessage(message)) {
             return { message, index };
         }
     }
@@ -168,11 +171,15 @@ function findLastCharacterMessage(messages) {
 function findPreviousUserMessage(messages, beforeIndex) {
     for (let index = beforeIndex - 1; index >= 0; index--) {
         const message = messages[index];
-        if (getMessageText(message) && message?.is_user && !message?.is_system) {
+        if (getMessageText(message) && message?.is_user) {
             return { message, index };
         }
     }
     return null;
+}
+
+function isSaveableCharacterMessage(message) {
+    return Boolean(getMessageText(message) && !message?.is_user);
 }
 
 function getRequestHeaders() {
@@ -365,15 +372,32 @@ async function startLastAiSaveFlow() {
         return;
     }
 
+    await startMessageSaveFlow(foundCharacter.index);
+}
+
+async function startMessageSaveFlow(messageIndex) {
+    const context = getContext();
+    const messages = Array.isArray(context?.chat) ? context.chat : [];
+    const index = Number.parseInt(String(messageIndex), 10);
+    const message = messages[index];
+
+    if (!Number.isInteger(index) || !isSaveableCharacterMessage(message)) {
+        showToast('没有找到可保存的角色回复', 'warning');
+        return;
+    }
+
+    getPanel().classList.remove('hidden');
+    syncSettingsInputs();
+
     if (state.prompts.length === 0 && !state.loading) {
         await fetchPrompts();
     }
 
-    const foundUser = findPreviousUserMessage(messages, foundCharacter.index);
+    const foundUser = findPreviousUserMessage(messages, index);
     const userText = getMessageText(foundUser?.message);
     const matches = findRelatedPrompts(userText);
     state.pendingSave = {
-        message: foundCharacter.message,
+        message,
         userMessage: foundUser?.message || null,
         userText,
         matches,
@@ -386,10 +410,16 @@ async function saveLastAiMessage(prompt = undefined) {
     const context = getContext();
     const message = state.pendingSave?.message;
 
+    if (state.saving) return;
+
     if (!message) {
         showToast('没有找到待保存的助手回复', 'warning');
         return;
     }
+
+    state.saving = true;
+    renderPanel();
+    showToast('正在保存到小剧场管理器...', 'info');
 
     const linkedPrompt = prompt === undefined ? (state.lastUsedPrompt || state.detailPrompt || null) : prompt;
     const promptTitle = linkedPrompt?.title || '未关联提示词';
@@ -399,7 +429,7 @@ async function saveLastAiMessage(prompt = undefined) {
         roleHandle: '',
         promptTitle,
         promptTitles: [promptTitle],
-        content: String(message.mes || '').trim(),
+        content: String(message.mes || message.message || '').trim(),
         createdAt: new Date().toISOString(),
         likes: 0,
         shares: 0,
@@ -417,11 +447,14 @@ async function saveLastAiMessage(prompt = undefined) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         state.pendingSave = null;
         state.view = 'settings';
-        renderPanel();
-        showToast('已保存最后一条助手回复到小剧场管理器');
+        closePanel();
+        showToast('已保存角色回复到小剧场管理器');
     } catch (error) {
         console.error(`[${EXTENSION_NAME}] 保存小剧场失败`, error);
         showToast(`保存失败：${error.message || error}`, 'error');
+    } finally {
+        state.saving = false;
+        if (!getPanel().classList.contains('hidden')) renderPanel();
     }
 }
 
@@ -567,12 +600,13 @@ function renderTags() {
 function renderLinkSave() {
     const pending = state.pendingSave;
     if (!pending) return renderSettings();
+    const saveLabel = state.saving ? '保存中...' : '不关联，直接保存';
     return `
         ${renderHeader('选择关联提示词', `找到 ${pending.matches.length} 个推荐关联`, 'settings', '')}
         <div class="theater-prompts-page-body">
             ${renderPromptLinkCandidates(pending.matches)}
             <div class="theater-prompts-detail-actions">
-                <button class="theater-prompts-block-button" type="button" data-action="save-unlinked">不关联，直接保存</button>
+                <button class="theater-prompts-block-button" type="button" data-action="save-unlinked" ${state.saving ? 'disabled' : ''}>${saveLabel}</button>
                 <button class="menu_button" type="button" data-action="settings">取消</button>
             </div>
         </div>
@@ -591,7 +625,7 @@ function renderPromptLinkCandidates(matches) {
                     <div class="theater-prompts-title-row">
                         <strong>${escapeHtml(prompt.title)}</strong>
                         <span class="theater-prompts-item-actions">
-                            <button class="menu_button" type="button" data-action="save-linked" data-prompt-id="${escapeHtml(prompt.id)}">关联并保存</button>
+                            <button class="menu_button" type="button" data-action="save-linked" data-prompt-id="${escapeHtml(prompt.id)}" ${state.saving ? 'disabled' : ''}>${state.saving ? '保存中...' : '关联并保存'}</button>
                         </span>
                     </div>
                     ${prompt.tags.length ? `<div class="theater-prompts-tags">${prompt.tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
@@ -776,7 +810,83 @@ function addExtensionButton() {
     container.appendChild(button);
 }
 
+function getMessageIndexFromElement(messageElement) {
+    const attributes = ['mesid', 'data-message-id', 'data-mes-id', 'data-index', 'data-message-index'];
+    for (const attribute of attributes) {
+        const rawValue = messageElement.getAttribute(attribute);
+        if (rawValue === null) continue;
+        const value = Number.parseInt(rawValue, 10);
+        if (Number.isInteger(value) && value >= 0) return value;
+    }
+
+    const messages = Array.from(document.querySelectorAll('#chat .mes, .mes'));
+    const index = messages.indexOf(messageElement);
+    return index >= 0 ? index : null;
+}
+
+function findExtraMessageButtonsContainer(messageElement) {
+    const hint = messageElement.querySelector('.extraMesButtonsHint');
+    return messageElement.querySelector('.extraMesButtons')
+        || hint?.parentElement?.querySelector('.extraMesButtons')
+        || (hint?.nextElementSibling?.classList?.contains('extraMesButtons') ? hint.nextElementSibling : null);
+}
+
+function addMessageSaveButton(messageElement) {
+    if (!messageElement || messageElement.querySelector(`.${MESSAGE_SAVE_BUTTON_CLASS}`)) return;
+
+    const messageIndex = getMessageIndexFromElement(messageElement);
+    if (messageIndex === null) return;
+
+    const context = getContext();
+    const message = Array.isArray(context?.chat) ? context.chat[messageIndex] : null;
+    if (!isSaveableCharacterMessage(message)) return;
+
+    const container = findExtraMessageButtonsContainer(messageElement);
+    if (!container) return;
+
+    const button = document.createElement('div');
+    button.className = `mes_button ${MESSAGE_SAVE_BUTTON_CLASS} fa-solid fa-paper-plane interactable`;
+    button.title = '关联保存到小剧场';
+    button.setAttribute('role', 'button');
+    button.setAttribute('tabindex', '0');
+    button.addEventListener('click', async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        await startMessageSaveFlow(messageIndex);
+    });
+    button.addEventListener('keydown', async event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        event.stopPropagation();
+        await startMessageSaveFlow(messageIndex);
+    });
+    container.appendChild(button);
+}
+
+function refreshMessageSaveButtons(root = document) {
+    root.querySelectorAll?.('.mes').forEach(addMessageSaveButton);
+}
+
+function watchMessageButtons() {
+    refreshMessageSaveButtons();
+    if (messageButtonsObserver) return;
+
+    messageButtonsObserver = new MutationObserver(mutations => {
+        for (const mutation of mutations) {
+            mutation.addedNodes.forEach(node => {
+                if (!(node instanceof Element)) return;
+                if (node.classList.contains('mes')) addMessageSaveButton(node);
+                const parentMessage = node.closest('.mes');
+                if (parentMessage) addMessageSaveButton(parentMessage);
+                refreshMessageSaveButtons(node);
+            });
+        }
+    });
+    messageButtonsObserver.observe(document.body, { childList: true, subtree: true });
+}
+
 jQuery(() => {
     loadSettings();
     addExtensionButton();
+    watchMessageButtons();
 });
