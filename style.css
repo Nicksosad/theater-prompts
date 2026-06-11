@@ -3,15 +3,28 @@
 }
 
 .theater-prompts-panel {
+    --tp-bg: #ffffff;
+    --tp-page: #f4f4f5;
+    --tp-border: #e2e8f0;
+    --tp-text: #1e293b;
+    --tp-muted: #64748b;
+    --tp-primary: #3b82f6;
+    --tp-primary-hover: #2563eb;
+    --tp-tag-bg: #f1f5f9;
+    --tp-tag-text: #475569;
+    --tp-hover: #f8fafc;
+    --tp-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -1px rgba(15, 23, 42, 0.03);
     position: fixed;
     inset: 0;
     z-index: 5000;
+    color: var(--tp-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 .theater-prompts-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(15, 23, 42, 0.32);
 }
 
 .theater-prompts-window {
@@ -20,14 +33,14 @@
     left: 50%;
     display: flex;
     flex-direction: column;
-    width: min(920px, calc(100vw - 24px));
+    width: min(480px, calc(100vw - 24px));
     max-height: 90vh;
     transform: translateX(-50%);
-    border: 1px solid var(--SmartThemeBorderColor);
+    border: 1px solid var(--tp-border);
     border-radius: 12px;
-    background: var(--SmartThemeBlurTintColor);
-    color: var(--SmartThemeBodyColor);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+    background: var(--tp-bg);
+    color: var(--tp-text);
+    box-shadow: var(--tp-shadow);
     overflow: hidden;
 }
 
@@ -36,8 +49,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 16px 18px;
-    border-bottom: 1px solid var(--SmartThemeBorderColor);
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--tp-border);
 }
 
 .theater-prompts-header > div:not(.theater-prompts-header-spacer) {
@@ -48,60 +61,156 @@
 .theater-prompts-header h3,
 .theater-prompts-detail h4 {
     margin: 0;
+    color: var(--tp-text);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.35;
 }
 
 .theater-prompts-header p {
     margin: 4px 0 0;
-    opacity: 0.75;
+    color: var(--tp-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.theater-prompts-header span[style] {
+    display: flex !important;
+    gap: 8px !important;
+    margin-left: auto !important;
 }
 
 .theater-prompts-header-spacer,
 .theater-prompts-plain-icon {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
 }
 
 .theater-prompts-plain-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 5px;
-    background: var(--SmartThemeBlurTintColor);
-    color: var(--SmartThemeBodyColor);
+    gap: 6px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--tp-muted);
     cursor: pointer;
-    font-size: 20px;
+    font-size: 18px;
     line-height: 1;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .theater-prompts-plain-icon:hover {
-    background: var(--white30a);
+    background: var(--tp-hover);
+    color: var(--tp-text);
 }
 
-.theater-prompts-panel .menu_button {
+.theater-prompts-plain-icon .fa-solid {
+    font-size: 15px;
+}
+
+.theater-prompts-panel .menu_button,
+.theater-prompts-dark-button,
+.theater-prompts-block-button,
+.theater-prompts-tag-option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: auto;
     min-width: max-content;
-    white-space: nowrap;
+    min-height: 32px;
     margin: 0;
+    padding: 7px 14px;
+    border: 1px solid var(--tp-border);
+    border-radius: 6px;
+    background: var(--tp-bg);
+    color: var(--tp-text);
+    box-shadow: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.2;
+    white-space: nowrap;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.theater-prompts-panel .menu_button:hover,
+.theater-prompts-dark-button:hover,
+.theater-prompts-block-button:hover,
+.theater-prompts-tag-option:hover {
+    border-color: var(--tp-border);
+    background: var(--tp-hover);
+    color: var(--tp-text);
+}
+
+.theater-prompts-panel button:disabled,
+.theater-prompts-panel .menu_button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
 }
 
 .theater-prompts-main-toolbar,
 .theater-prompts-toolbar {
     display: flex;
-    align-items: end;
-    gap: 10px;
-    padding: 12px 18px 0;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--tp-border);
 }
 
-.theater-prompts-main-toolbar {
-    align-items: center;
+.theater-prompts-toolbar {
+    justify-content: flex-end;
+    padding-top: 0;
+    border-bottom: 0;
 }
 
 .theater-prompts-main-toolbar input {
     flex: 1;
-    min-width: 220px;
+    min-width: 0;
+    width: 100%;
+    min-height: 36px;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    border: 1px solid var(--tp-border);
+    border-radius: 6px;
+    background: var(--tp-bg);
+    color: var(--tp-text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.theater-prompts-main-toolbar input:focus,
+.theater-prompts-toolbar input:focus,
+.theater-prompts-page-body input:focus,
+.theater-prompts-content:focus {
+    border-color: var(--tp-primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.theater-prompts-main-toolbar input::placeholder {
+    color: var(--tp-muted);
+}
+
+.theater-prompts-dark-button {
+    padding-inline: 12px;
+}
+
+.theater-prompts-random .menu_button:first-child::before {
+    content: "↝";
+    margin-right: 6px;
+    color: var(--tp-muted);
+    font-size: 15px;
+}
+
+.theater-prompts-page-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 20px 20px;
+    overflow: auto;
 }
 
 .theater-prompts-toolbar label,
@@ -109,56 +218,28 @@
 .theater-prompts-form-group {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     min-width: 170px;
-    font-size: 0.9em;
+    color: var(--tp-muted);
+    font-size: 13px;
 }
 
-.theater-prompts-main-toolbar input,
 .theater-prompts-toolbar input,
-.theater-prompts-page-body input {
-    min-height: 32px;
-}
-
-.theater-prompts-dark-button,
-.theater-prompts-block-button,
-.theater-prompts-tag-option {
-    color: var(--SmartThemeBodyColor);
-    filter: grayscale(0.5);
-    background-color: var(--SmartThemeBlurTintColor);
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 5px;
-    padding: 3px 8px;
-    cursor: pointer;
-    transition: var(--animation-duration-2x);
-}
-
-.theater-prompts-dark-button:hover,
-.theater-prompts-block-button:hover,
-.theater-prompts-tag-option:hover {
-    background-color: var(--white30a);
-}
-
-.theater-prompts-random {
-    justify-content: flex-end;
-}
-
-.theater-prompts-random label:first-child {
-    margin-right: auto;
-}
-
-.theater-prompts-page-body {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    padding: 18px;
-    overflow: auto;
+.theater-prompts-page-body input,
+.theater-prompts-content {
+    min-height: 34px;
+    box-sizing: border-box;
+    border: 1px solid var(--tp-border);
+    border-radius: 6px;
+    background: var(--tp-bg);
+    color: var(--tp-text);
+    outline: none;
 }
 
 .theater-prompts-block-button {
     width: fit-content;
     min-width: 180px;
-    padding: 7px 12px;
+    padding: 8px 12px;
 }
 
 .theater-prompts-tag-grid {
@@ -167,88 +248,137 @@
     flex-wrap: wrap;
 }
 
-.theater-prompts-tag-option.active {
-    background: var(--white30a);
-    filter: none;
+.theater-prompts-tag-option {
+    min-height: 28px;
+    padding: 4px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--tp-tag-bg);
+    color: var(--tp-tag-text);
+    font-size: 12px;
+    font-weight: 500;
 }
 
-.theater-prompts-count,
+.theater-prompts-tag-option.active {
+    background: var(--tp-primary);
+    color: #ffffff;
+}
+
 .theater-prompts-error,
 .theater-prompts-empty {
-    margin: 12px 18px;
+    margin: 0;
+    padding: 0 20px 12px;
+    color: var(--tp-muted);
+    font-size: 12px;
 }
 
 .theater-prompts-error {
-    color: #ff8a8a;
+    color: #dc2626;
 }
 
-.theater-prompts-empty {
-    opacity: 0.75;
-}
-
-.theater-prompts-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 0 18px 18px;
-    overflow: auto;
-}
-
+.theater-prompts-list,
 .theater-prompts-link-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
+    padding: 0;
+    overflow: auto;
+}
+
+.theater-prompts-list {
+    border-top: 1px solid var(--tp-border);
 }
 
 .theater-prompts-item {
-    padding: 12px;
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.04);
+    padding: 16px 20px;
+    border: 0;
+    border-bottom: 1px solid var(--tp-border);
+    border-radius: 0;
+    background: var(--tp-bg);
+    transition: background-color 0.2s;
 }
 
-.theater-prompts-item-main strong {
-    display: inline;
-    word-break: break-all;
+.theater-prompts-item:last-child {
+    border-bottom: 0;
+}
+
+.theater-prompts-item:hover {
+    background: var(--tp-hover);
+}
+
+.theater-prompts-item-main strong,
+.theater-prompts-title-row strong {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    color: var(--tp-text);
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.theater-prompts-title-row strong::before {
+    content: "◇";
+    color: var(--tp-muted);
+    font-size: 14px;
+    line-height: 1;
 }
 
 .theater-prompts-title-row {
-    line-height: 1.8;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    line-height: 1.45;
 }
 
 .theater-prompts-title-row::after {
-    content: "";
-    display: block;
-    clear: both;
+    content: none;
 }
 
 .theater-prompts-item-actions {
     display: inline-flex;
-    float: right;
-    gap: 6px;
-    margin-left: 8px;
+    flex: 0 0 auto;
+    float: none;
+    gap: 8px;
+    margin-left: 0;
     white-space: nowrap;
     vertical-align: baseline;
 }
 
 .theater-prompts-item-actions .menu_button {
-    display: inline-flex;
-    vertical-align: middle;
+    min-height: 28px;
+    padding: 4px 10px;
+    font-size: 12px;
 }
 
 .theater-prompts-tags {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     flex-wrap: wrap;
-    margin-top: 7px;
+    margin-top: 10px;
 }
 
 .theater-prompts-tags span {
-    padding: 2px 8px;
-    border: 1px solid var(--SmartThemeBorderColor);
+    padding: 4px 10px;
+    border: 0;
     border-radius: 999px;
-    font-size: 0.85em;
-    opacity: 0.85;
+    background: var(--tp-tag-bg);
+    color: var(--tp-tag-text);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.25;
+    opacity: 1;
+}
+
+.theater-prompts-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 20px 20px;
+    overflow: auto;
 }
 
 .theater-prompts-detail-actions {
@@ -257,17 +387,10 @@
     flex-wrap: wrap;
 }
 
-.theater-prompts-detail {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 18px;
-    overflow: auto;
-}
-
 .theater-prompts-content {
     width: 100%;
     min-height: 48vh;
+    padding: 10px 12px;
     resize: vertical;
     white-space: pre-wrap;
 }
@@ -279,20 +402,36 @@
         max-height: 96vh;
     }
 
-    .theater-prompts-item {
-        gap: 8px;
+    .theater-prompts-header,
+    .theater-prompts-main-toolbar,
+    .theater-prompts-toolbar,
+    .theater-prompts-item,
+    .theater-prompts-page-body,
+    .theater-prompts-detail {
+        padding-inline: 14px;
     }
 
     .theater-prompts-main-toolbar {
         flex-wrap: nowrap;
+        gap: 8px;
     }
 
-    .theater-prompts-main-toolbar input {
-        min-width: 0;
+    .theater-prompts-toolbar {
+        justify-content: flex-start;
+        flex-wrap: wrap;
     }
 
     .theater-prompts-toolbar label,
-    .theater-prompts-page-body > label {
+    .theater-prompts-page-body > label,
+    .theater-prompts-form-group {
         width: 100%;
+    }
+
+    .theater-prompts-title-row {
+        gap: 10px;
+    }
+
+    .theater-prompts-item-actions {
+        align-self: flex-end;
     }
 }

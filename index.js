@@ -545,17 +545,15 @@ function renderMain(prompts, filteredCount, isRandomView) {
                 <p>${isRandomView ? `抽取结果 ${prompts.length} 条` : `当前显示 ${prompts.length} 条`}</p>
             </div>
             <span style="display:flex;gap:8px;margin-left:auto;">
-                <button class="theater-prompts-plain-icon" type="button" data-action="settings">⚙</button>
-                <button class="theater-prompts-plain-icon" type="button" data-action="close">×</button>
+                <button class="theater-prompts-plain-icon" type="button" data-action="open-tags" title="${escapeHtml(tagText)}"><span class="fa-solid fa-tags"></span></button>
+                <button class="theater-prompts-plain-icon" type="button" data-action="settings" title="设置"><span class="fa-solid fa-gear"></span></button>
+                <button class="theater-prompts-plain-icon" type="button" data-action="close" title="关闭"><span class="fa-solid fa-xmark"></span></button>
             </span>
         </header>
         <div class="theater-prompts-main-toolbar">
-            <input id="theater_prompts_search" type="search" value="${escapeHtml(state.searchQuery)}" placeholder="搜索标题或标签">
-            <button class="theater-prompts-dark-button" type="button" data-action="open-tags">${escapeHtml(tagText)}</button>
-        </div>
-        <div class="theater-prompts-toolbar theater-prompts-random">
-            <button class="menu_button" type="button" data-action="random">随机抽取</button>
-            ${isRandomView ? '<button class="menu_button" type="button" data-action="clear-random">清除抽取结果</button>' : ''}
+            <input id="theater_prompts_search" type="search" value="${escapeHtml(state.searchQuery)}" placeholder="搜索提示词或关键字...">
+            <button class="menu_button theater-prompts-random-button" type="button" data-action="random"><span class="fa-solid fa-shuffle"></span>随机抽取</button>
+            ${isRandomView ? '<button class="menu_button" type="button" data-action="clear-random">清除</button>' : ''}
         </div>
         ${state.error ? `<div class="theater-prompts-error">${escapeHtml(state.error)}</div>` : ''}
         ${state.loading ? '<div class="theater-prompts-empty">正在读取提示词...</div>' : renderPromptList(prompts, filteredCount, isRandomView)}
@@ -645,7 +643,6 @@ function renderPromptList(prompts, filteredCount, isRandomView) {
     }
 
     return `
-        <div class="theater-prompts-count">${isRandomView ? `抽取结果 ${prompts.length} 条，原筛选范围 ${filteredCount} 条` : `筛选结果 ${filteredCount} 条`}</div>
         <div class="theater-prompts-list">
             ${prompts.map(prompt => `
                 <article class="theater-prompts-item" data-prompt-id="${escapeHtml(prompt.id)}">
