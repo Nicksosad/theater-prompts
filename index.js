@@ -12,6 +12,7 @@ const state = {
     tags: [],
     selectedTags: [],
     searchQuery: '',
+    searchDraft: '',
     randomCount: 10,
     randomPrompts: null,
     detailPrompt: null,
@@ -26,7 +27,6 @@ const state = {
     error: '',
 };
 
-let searchRenderTimer = null;
 let messageButtonsObserver = null;
 
 function loadSettings() {
@@ -291,6 +291,12 @@ function getDisplayedPrompts() {
     return state.randomPrompts || getFilteredPrompts();
 }
 
+function applySearch() {
+    state.searchQuery = state.searchDraft.trim();
+    state.randomPrompts = null;
+    renderPanel();
+}
+
 function syncSettingsInputs() {
     const baseUrlInput = document.getElementById('theater_prompts_base_url');
     const passwordInput = document.getElementById('theater_prompts_auth_password');
@@ -551,7 +557,8 @@ function renderMain(prompts, filteredCount, isRandomView) {
             </span>
         </header>
         <div class="theater-prompts-main-toolbar">
-            <input id="theater_prompts_search" type="search" value="${escapeHtml(state.searchQuery)}" placeholder="搜索提示词或关键字...">
+            <input id="theater_prompts_search" type="search" value="${escapeHtml(state.searchDraft)}" placeholder="搜索提示词或关键字...">
+            <button class="menu_button" type="button" data-action="search" aria-label="搜索">搜索</button>
             <button class="menu_button theater-prompts-random-button" type="button" data-action="random"><span class="fa-solid fa-shuffle"></span>随机抽取</button>
             ${isRandomView ? '<button class="menu_button" type="button" data-action="clear-random">清除</button>' : ''}
         </div>
@@ -707,6 +714,7 @@ function bindPanelEvents(panel) {
                 syncSettingsInputs();
                 await fetchPrompts();
             }
+            if (action === 'search') applySearch();
             if (action === 'clear-tags') {
                 state.selectedTags = [];
                 state.randomPrompts = null;
@@ -781,10 +789,12 @@ function bindPanelEvents(panel) {
         saveSettings();
     });
     searchInput?.addEventListener('input', event => {
-        state.searchQuery = event.target.value;
-        state.randomPrompts = null;
-        clearTimeout(searchRenderTimer);
-        searchRenderTimer = setTimeout(renderPanel, 250);
+        state.searchDraft = event.target.value;
+    });
+    searchInput?.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        applySearch();
     });
     randomCountInput?.addEventListener('change', event => {
         state.randomCount = clampRandomCount(event.target.value);
