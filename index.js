@@ -28,6 +28,7 @@ const state = {
 };
 
 let messageButtonsObserver = null;
+let messageSaveEventsBound = false;
 
 function loadSettings() {
     try {
@@ -856,18 +857,32 @@ function addMessageSaveButton(messageElement) {
     button.title = '关联保存到小剧场';
     button.setAttribute('role', 'button');
     button.setAttribute('tabindex', '0');
-    button.addEventListener('click', async event => {
-        event.preventDefault();
-        event.stopPropagation();
-        await startMessageSaveFlow(messageIndex);
-    });
-    button.addEventListener('keydown', async event => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        event.stopPropagation();
-        await startMessageSaveFlow(messageIndex);
-    });
     container.appendChild(button);
+}
+
+async function handleMessageSaveEvent(event) {
+    if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+    const button = event.target instanceof Element
+        ? event.target.closest(`.${MESSAGE_SAVE_BUTTON_CLASS}`)
+        : null;
+    if (!button) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const messageElement = button.closest('.mes');
+    const messageIndex = messageElement ? getMessageIndexFromElement(messageElement) : null;
+    if (messageIndex === null) {
+        showToast('无法定位这条角色回复，请刷新聊天后重试', 'error');
+        return;
+    }
+    await startMessageSaveFlow(messageIndex);
+}
+
+function bindMessageSaveEvents() {
+    if (messageSaveEventsBound) return;
+    document.addEventListener('click', handleMessageSaveEvent, true);
+    document.addEventListener('keydown', handleMessageSaveEvent, true);
+    messageSaveEventsBound = true;
 }
 
 function refreshMessageSaveButtons(root = document) {
@@ -895,5 +910,6 @@ function watchMessageButtons() {
 jQuery(() => {
     loadSettings();
     addExtensionButton();
+    bindMessageSaveEvents();
     watchMessageButtons();
 });
